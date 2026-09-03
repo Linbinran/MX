@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MusicGuessr · 每日挑战 · 猜歌游戏</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-deep:#150a24;
+    --bg-deep-2:#1a0e2b;
+    --bg-card:#2a1743;
+    --bg-card-2:#341d54;
+    --gold-1:#f8dfa0;
+    --gold-2:#d9a441;
+    --gold-3:#a5701e;
+    --pink:#ff7fb0;
+    --pink-dim:#c9578f;
+    --success:#6ee7b7;
+    --fail:#9a91a8;
+    --text-light:#f6f0ff;
+    --text-dim:#b4a3d4;
+    --text-faint:#7c6b9c;
+    --radius-lg:28px;
+    --radius-md:20px;
+    --radius-sm:14px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; height:100%;}
+  body{
+    background:
+      radial-gradient(circle at 20% -10%, #3a2159 0%, transparent 45%),
+      radial-gradient(circle at 100% 10%, #2c1848 0%, transparent 50%),
+      var(--bg-deep);
+    color:var(--text-light);
+    font-family:'Noto Sans SC', sans-serif;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    overflow-x:hidden;
+  }
+  .display-font{font-family:'ZCOOL KuaiLe', 'Noto Sans SC', sans-serif;}
+  button{font-family:inherit; border:none; cursor:pointer; background:none; color:inherit;}
+  input{font-family:inherit;}
+
+  /* ---------- app shell ---------- */
+  #app{
+    width:100%;
+    max-width:480px;
+    min-height:100dvh;
+    position:relative;
+    background:linear-gradient(180deg, var(--bg-deep-2) 0%, var(--bg-deep) 100%);
+    box-shadow:0 0 60px rgba(0,0,0,0.5);
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+  }
+
+  /* ---------- site header (logo + name, top-left, all screens) ---------- */
+  .site-header{
+    flex-shrink:0;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:14px 16px 6px 16px;
+  }
+  .site-header .site-logo{
+    width:26px; height:26px; flex-shrink:0;
+    filter:drop-shadow(0 2px 6px rgba(0,0,0,0.35));
+  }
+  .site-header .site-name{
+    font-size:17px;
+    letter-spacing:0.5px;
+    color:var(--gold-1);
+    font-weight:700;
+    font-family:'Noto Sans SC', sans-serif;
+  }
+
+  /* ---------- screens wrapper (holds all absolutely-positioned screens) ---------- */
+  .screens-wrap{
+    position:relative;
+    flex:1;
+    min-height:0;
+  }
+
+  /* ---------- header / score bar (per-screen) ---------- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:6px 18px 8px 18px;
+  }
+  .topbar .back-btn{
+    width:38px; height:38px; border-radius:50%;
+    background:rgba(255,255,255,0.06);
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px; color:var(--text-dim);
+  }
+  .topbar .back-btn.hidden{visibility:hidden;}
+  .score-pill{
+    display:flex; align-items:center; gap:6px;
+    background:linear-gradient(135deg, #3a2456, #2a1743);
+    border:1px solid rgba(248,223,160,0.25);
+    padding:7px 14px 7px 10px;
+    border-radius:999px;
+    box-shadow:0 4px 14px rgba(0,0,0,0.35);
+  }
+  .score-pill .star{font-size:16px; filter:drop-shadow(0 0 4px rgba(248,223,160,0.7));}
+  .score-pill .score-num{font-weight:700; font-size:15px; color:var(--gold-1); letter-spacing:0.5px;}
+
+  /* ---------- screens ---------- */
+  .screen{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column;
+    opacity:0; pointer-events:none;
+    transform:translateY(8px);
+    transition:opacity .45s ease, transform .45s ease;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  .screen.active{
+    position:relative;
+    opacity:1; pointer-events:auto; transform:translateY(0);
+  }
+
+  /* portal transition overlay */
+  #portal-overlay{
+    position:fixed; inset:0; z-index:200;
+    display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(circle, #6b3fa0 0%, #1a0e2b 70%);
+    opacity:0; pointer-events:none;
+  }
+  #portal-overlay.show{ animation:portalPulse .7s ease forwards; }
+  @keyframes portalPulse{
+    0%{opacity:0; clip-path:circle(0% at 50% 20%);}
+    35%{opacity:1; clip-path:circle(75% at 50% 20%);}
+    65%{opacity:1; clip-path:circle(75% at 50% 20%);}
+    100%{opacity:0; clip-path:circle(140% at 50% 20%);}
+  }
+  #portal-overlay .portal-emoji{
+    font-size:54px; animation:spin 1.4s linear infinite;
+  }
+  @keyframes spin{ from{transform:rotate(0deg) scale(1);} to{transform:rotate(360deg) scale(1);} }
+
+  /* ---------- HOME ---------- */
+  .home-banner{
+    margin:6px 16px 18px 16px;
+    padding:28px 22px 24px 22px;
+    border-radius:var(--radius-lg);
+    background:
+      radial-gradient(circle at 90% 0%, rgba(255,127,176,0.35), transparent 55%),
+      linear-gradient(135deg, #4b2a72 0%, #2a1743 70%);
+    position:relative;
+    overflow:hidden;
+    box-shadow:0 10px 30px rgba(0,0,0,0.4);
+    cursor:pointer;
+    transition:transform .15s ease;
+  }
+  .home-banner:active{ transform:scale(0.98); }
+  .home-banner::after{
+    content:"";
+    position:absolute; right:-30px; top:-30px;
+    width:140px; height:140px; border-radius:50%;
+    background:radial-gradient(circle, rgba(248,223,160,0.35), transparent 70%);
+  }
+  .home-banner h1{
+    margin:0; font-size:34px; font-weight:400;
+    color:var(--gold-1);
+    letter-spacing:2px;
+    text-shadow:0 3px 12px rgba(0,0,0,0.5);
+  }
+  .home-banner p{
+    margin:8px 0 0 0; font-size:13.5px; color:var(--text-dim); letter-spacing:1px;
+  }
+  .home-banner .banner-cta{
+    display:inline-block; margin-top:14px; font-size:12px; color:var(--gold-1);
+    background:rgba(248,223,160,0.14); border:1px solid rgba(248,223,160,0.35);
+    padding:6px 14px; border-radius:999px; position:relative; z-index:1;
+  }
+
+  .mode-grid{
+    display:grid; grid-template-columns:1fr 1fr;
+    gap:14px; padding:0 16px;
+  }
+  .mode-card{
+    aspect-ratio:1/0.95;
+    border-radius:var(--radius-md);
+    padding:16px;
+    display:flex; flex-direction:column; justify-content:space-between;
+    position:relative; overflow:hidden;
+    transition:transform .15s ease;
+    box-shadow:0 8px 20px rgba(0,0,0,0.35);
+  }
+  .mode-card:active{ transform:scale(0.96); }
+  .mode-card .emoji{font-size:34px;}
+  .mode-card .title{font-size:17px; font-weight:700;}
+  .mode-card .sub{font-size:11.5px; color:rgba(255,255,255,0.65); margin-top:2px;}
+
+  .mode-card.normal{ background:linear-gradient(150deg,#3d2560,#26173e); }
+  .mode-card.kpop{ background:linear-gradient(150deg,#5c2456,#301a45); }
+  .mode-card.western{ background:linear-gradient(150deg,#24406b,#1c2a49); }
+  .mode-card.locked{
+    background:#26203a; color:rgba(255,255,255,0.35);
+    display:flex; align-items:center; justify-content:center; text-align:center;
+    cursor:not-allowed;
+  }
+  .mode-card.locked .lock-emoji{font-size:26px; margin-bottom:6px;}
+  .mode-card.locked .title{font-size:14px; color:rgba(255,255,255,0.4);}
+
+  /* ---------- ZODIAC SELECT ---------- */
+  .zodiac-header{ padding:4px 20px 0 20px; }
+  .zodiac-header h2{ margin:0; font-size:22px; color:var(--gold-1); font-weight:400; }
+  .zodiac-header p{ margin:6px 0 0 0; font-size:12.5px; color:var(--text-faint); }
+
+  .zodiac-grid{
+    flex:1;
+    display:grid; grid-template-columns:repeat(3, 1fr);
+    gap:14px; padding:20px; align-content:start;
+  }
+  .zodiac-cell{
+    aspect-ratio:1/1;
+    border-radius:var(--radius-sm);
+    background:linear-gradient(160deg, var(--bg-card-2), var(--bg-card));
+    border:1px solid rgba(255,255,255,0.06);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:4px;
+    perspective:600px;
+  }
+  .zodiac-cell .flip-inner{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:4px; transition:transform .5s ease;
+  }
+  .zodiac-cell .emoji{font-size:30px;}
+  .zodiac-cell .name{font-size:11.5px; color:var(--text-dim);}
+  .zodiac-cell.solved{
+    background:linear-gradient(160deg, #2a3d33, #1e2c25);
+    opacity:0.55;
+  }
+  .zodiac-cell.solved .emoji{ filter:grayscale(1); }
+  .zodiac-cell.solved::after{
+    content:"✓"; position:absolute; font-size:20px; color:var(--success);
+    margin-top:-52px;
+  }
+  .zodiac-cell:not(.solved):active{ transform:scale(0.94); }
+
+  /* ---------- DOOR SCREEN ---------- */
+  .door-screen{ align-items:center; padding:10px 24px 30px 24px; text-align:center; }
+  .door-number-wrap{ margin-top:10px; }
+  .door-label{ font-size:13px; letter-spacing:3px; color:var(--text-faint); }
+  .door-number{
+    font-size:96px; line-height:1; font-weight:400;
+    background:linear-gradient(180deg, var(--gold-1), var(--gold-2));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    text-shadow:0 6px 30px rgba(217,164,65,0.25);
+    margin:2px 0 6px 0;
+  }
+  .door-score-hint{ font-size:12.5px; color:var(--text-dim); margin-bottom:22px; }
+
+  .doorbell-wrap{ position:relative; margin:10px 0 26px 0; }
+
+  /* -- 门铃按钮：呼吸 + 发光特效 -- */
+  .doorbell-btn{
+    position:relative;
+    z-index:2;
+    width:150px; height:150px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, var(--gold-1), var(--gold-2) 55%, var(--gold-3) 100%);
+    box-shadow:0 0 0 8px rgba(248,223,160,0.08), 0 14px 34px rgba(0,0,0,0.45), inset 0 -6px 12px rgba(0,0,0,0.25), inset 0 6px 10px rgba(255,255,255,0.4);
+    display:flex; align-items:center; justify-content:center;
+    font-size:52px;
+    user-select:none; -webkit-user-select:none;
+    transition:transform .35s ease, box-shadow .45s ease;
+  }
+  .doorbell-btn::after{
+    content:"";
+    position:absolute; inset:-18px;
+    border-radius:50%;
+    background:radial-gradient(circle, rgba(248,223,160,0.55) 0%, rgba(248,223,160,0) 70%);
+    opacity:0;
+    transition:opacity .5s ease;
+    pointer-events:none;
+    z-index:-1;
+  }
+  @keyframes doorbellBreathe{
+    0%,100%{ transform:scale(1); }
+    50%{ transform:scale(1.07); }
+  }
+  .doorbell-btn.holding{
+    animation:doorbellBreathe 1.15s ease-in-out infinite;
+    box-shadow:0 0 0 8px rgba(248,223,160,0.14), 0 14px 34px rgba(0,0,0,0.45), inset 0 -6px 12px rgba(0,0,0,0.25), inset 0 6px 10px rgba(255,255,255,0.4), 0 0 34px 10px rgba(248,223,160,0.6);
+  }
+  .doorbell-btn.holding::after{
+    opacity:1;
+  }
+
+  .ring-pulse{
+    position:absolute; inset:0; border-radius:50%;
+    border:2px solid rgba(248,223,160,0.6);
+    opacity:0; pointer-events:none;
+  }
+  .ring-pulse.animate{ animation:ringPulse 1s ease-out infinite; }
+  @keyframes ringPulse{
+    0%{ opacity:0.8; transform:scale(1); }
+    100%{ opacity:0; transform:scale(1.6); }
+  }
+  .doorbell-hint{ font-size:12.5px; color:var(--text-faint); margin-top:2px; min-height:16px; }
+  .progress-ring-track{
+    position:absolute; inset:-14px; border-radius:50%;
+    background:conic-gradient(var(--pink) calc(var(--p,0) * 1%), rgba(255,255,255,0.08) 0);
+    -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+    mask:radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+    opacity:0; transition:opacity .2s ease;
+    pointer-events:none;
+  }
+  .progress-ring-track.show{ opacity:1; }
+
+  /* ---------- ANSWER PANEL ---------- */
+  .answer-panel{
+    width:100%; margin-top:auto;
+    background:var(--bg-card);
+    border-radius:var(--radius-lg) var(--radius-lg) 0 0;
+    padding:22px 22px 26px 22px;
+    box-shadow:0 -10px 30px rgba(0,0,0,0.4);
+    transform:translateY(120%);
+    transition:transform .35s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .answer-panel.show{ transform:translateY(0); }
+  .answer-panel .row-top{
+    display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;
+  }
+  .answer-panel .row-top .label{ font-size:14px; color:var(--text-dim); }
+  .hint-toggle{
+    width:24px; height:24px; border-radius:50%;
+    background:rgba(255,255,255,0.08); color:var(--text-dim);
+    font-size:13px; display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  .hint-text{
+    max-height:0; overflow:hidden; transition:max-height .35s ease, margin .35s ease;
+    font-size:12px; color:var(--text-faint); line-height:1.7; white-space:pre-line;
+  }
+  .hint-text.show{ max-height:220px; margin-bottom:10px; }
+  .answer-input{
+    width:100%; padding:14px 16px; border-radius:var(--radius-sm);
+    background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12);
+    color:var(--text-light); font-size:15px; margin-bottom:14px;
+  }
+  .answer-input:focus{ outline:none; border-color:var(--gold-2); }
+  .answer-btns{ display:flex; gap:12px; }
+  .answer-btns button{
+    flex:1; padding:14px 0; border-radius:999px; font-size:15px; font-weight:700;
+  }
+  .btn-idk{ background:rgba(255,127,127,0.15); color:#ff9c9c; border:1px solid rgba(255,127,127,0.35) !important; }
+  .btn-confirm{ background:linear-gradient(135deg,#5be6a8,#2fae7c); color:#0d2b1e; }
+
+  /* ---------- FEEDBACK FLASH ---------- */
+  #feedback-flash{
+    position:fixed; inset:0; z-index:150;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(10,5,18,0.55);
+    opacity:0; pointer-events:none;
+  }
+  #feedback-flash.show{ animation:flashIn .5s ease forwards; }
+  @keyframes flashIn{
+    0%{ opacity:0; }
+    15%{ opacity:1; }
+    85%{ opacity:1; }
+    100%{ opacity:0; }
+  }
+  #feedback-flash .flash-text{
+    font-size:26px; font-weight:700; padding:16px 30px; border-radius:20px;
+    transform:scale(0.7);
+  }
+  #feedback-flash.correct .flash-text{
+    color:#0d2b1e; background:linear-gradient(135deg,#8ff5c4,#4fd39a);
+    animation:popIn .5s ease forwards;
+    box-shadow:0 0 40px rgba(111,231,183,0.5);
+  }
+  #feedback-flash.wrong .flash-text{
+    color:#e6e0f0; background:rgba(80,72,100,0.9);
+    animation:popIn .5s ease forwards;
+  }
+  @keyframes popIn{ 0%{transform:scale(0.6); opacity:0;} 50%{transform:scale(1.06); opacity:1;} 100%{transform:scale(1); opacity:1;} }
+
+  /* ---------- MODALS ---------- */
+  .modal-overlay{
+    position:fixed; inset:0; z-index:180;
+    background:rgba(8,4,15,0.75);
+    display:flex; align-items:center; justify-content:center;
+    padding:24px;
+    opacity:0; pointer-events:none; transition:opacity .3s ease;
+  }
+  .modal-overlay.show{ opacity:1; pointer-events:auto; }
+  .modal-box{
+    width:90%; max-width:400px; background:var(--bg-card);
+    border-radius:var(--radius-lg); overflow:hidden;
+    box-shadow:0 20px 60px rgba(0,0,0,0.6);
+    transform:translateY(20px) scale(0.96); transition:transform .3s ease;
+  }
+  .modal-overlay.show .modal-box{ transform:translateY(0) scale(1); }
+
+  /* -- info header (song metadata) -- */
+  .modal-info-header{
+    border-top:6px solid #b47aff;
+    background:linear-gradient(160deg, #2d1a42 0%, #1f0f30 100%);
+    padding:16px 20px;
+  }
+  .modal-info-title{
+    font-size:16px; font-weight:700; margin-bottom:10px;
+  }
+  .modal-info-title.is-correct{ color:var(--success); }
+  .modal-info-title.is-wrong{ color:var(--fail); }
+  .modal-info-row{
+    font-size:14.5px; color:#f0e6ff; line-height:1.8;
+  }
+  .modal-info-row b{ font-weight:500; }
+  .modal-divider{ height:1px; background:rgba(255,255,255,0.1); }
+  .modal-video-wrap{ padding:12px; }
+  .modal-video-wrap video{ width:100%; display:block; background:#000; aspect-ratio:16/9; border-radius:12px; }
+  .modal-box .modal-btn-wrap{ padding:4px 18px 20px 18px; }
+  .modal-box .modal-btn-wrap button{
+    width:100%; padding:14px 0; border-radius:999px; font-weight:700; font-size:15px;
+  }
+  .btn-collect{ background:linear-gradient(135deg,var(--gold-1),var(--gold-2)); color:#3b2604; }
+  .btn-viewscore{ background:rgba(255,255,255,0.1); color:var(--text-light); border:1px solid rgba(255,255,255,0.15) !important; }
+
+  /* ---------- STAR FLY ---------- */
+  .fly-star{
+    position:fixed; z-index:220; font-size:20px; pointer-events:none;
+    filter:drop-shadow(0 0 6px rgba(248,223,160,0.8));
+  }
+  .score-pill.bump{ animation:bump .35s ease; }
+  @keyframes bump{ 0%{transform:scale(1);} 40%{transform:scale(1.25);} 100%{transform:scale(1);} }
+
+  /* ---------- SUMMARY ---------- */
+  .summary-screen{ align-items:center; justify-content:center; text-align:center; padding:0 30px; }
+  .summary-screen .sub{ font-size:13px; color:var(--text-faint); letter-spacing:2px; margin-bottom:10px; }
+  .summary-screen .total{
+    font-size:20px; color:var(--text-dim); margin-bottom:4px;
+  }
+  .summary-screen .total b{
+    display:block; font-size:52px; margin-top:6px;
+    background:linear-gradient(180deg, var(--gold-1), var(--gold-2));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .summary-screen .stars-row{ font-size:30px; margin:18px 0 26px 0; letter-spacing:6px; }
+  .btn-home{
+    padding:14px 40px; border-radius:999px; font-size:15px; font-weight:700;
+    background:linear-gradient(135deg,var(--pink),var(--pink-dim)); color:#2b0e1c;
+  }
+
+  .hidden{ display:none !important; }
+
+  /* ---------- RESPONSIVE: larger screens (tablet / PC) ---------- */
+  @media (min-width:701px){
+    body{ padding:32px 0; align-items:flex-start; }
+    #app{
+      max-width:600px;
+      min-height:auto;
+      height:calc(100vh - 64px);
+      max-height:900px;
+      border-radius:32px;
+      margin:auto;
+    }
+    .site-header .site-name{ font-size:19px; }
+    .home-banner h1{ font-size:38px; }
+    .door-number{ font-size:108px; }
+    .doorbell-btn{ width:168px; height:168px; font-size:58px; }
+  }
+
+  /* ---------- Hover feedback for mouse/trackpad users (skipped on touch) ---------- */
+  @media (hover:hover) and (pointer:fine){
+    .home-banner:hover{ transform:translateY(-2px); box-shadow:0 14px 34px rgba(0,0,0,0.45); }
+    .mode-card:not(.locked):hover{ transform:translateY(-3px); box-shadow:0 12px 26px rgba(0,0,0,0.45); }
+    .zodiac-cell:not(.solved):hover{ transform:translateY(-3px); border-color:rgba(248,223,160,0.35); }
+    .doorbell-btn:hover{ filter:brightness(1.06); }
+    .btn-confirm:hover, .btn-idk:hover, .btn-home:hover, .btn-collect:hover, .btn-viewscore:hover{ filter:brightness(1.08); }
+    .back-btn:hover{ background:rgba(255,255,255,0.12); }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ============ SITE HEADER (logo + name, top-left, persists across all screens) ============ -->
+  <div class="site-header">
+    <svg class="site-logo" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <linearGradient id="logoGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#f8dfa0"/>
+          <stop offset="1" stop-color="#d9a441"/>
+        </linearGradient>
+      </defs>
+      <rect x="2" y="2" width="36" height="36" rx="11" fill="url(#logoGrad)"/>
+      <path d="M14.5 27.5V14.2L27 11.5v11.8" stroke="#2a1743" stroke-width="2.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="12.6" cy="28.3" r="3.3" fill="#2a1743"/>
+      <circle cx="25.1" cy="25.6" r="3.3" fill="#2a1743"/>
+      <path d="M30.4 8.8c2.6 1.7 2.6 4.5 0 6.2" stroke="#2a1743" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+      <path d="M32.4 6.9c3.8 2.4 3.8 6.5 0 8.9" stroke="#2a1743" stroke-width="1.3" fill="none" stroke-linecap="round" opacity="0.55"/>
+    </svg>
+    <span class="site-name display-font">MusicGuessr</span>
+  </div>
+
+  <div class="screens-wrap">
+
+  <!-- ============ HOME ============ -->
+  <div class="screen active" id="screen-home">
+    <div class="topbar">
+      <div class="back-btn hidden">‹</div>
+      <div style="flex:1"></div>
+      <div class="score-pill" id="score-pill-home">
+        <span class="star">⭐</span><span class="score-num" id="score-num-home">0</span>
+      </div>
+    </div>
+
+    <div class="home-banner" id="daily-challenge-banner" role="button" tabindex="0" aria-label="进入每日挑战">
+      <h1 class="display-font">每日挑战</h1>
+      <p>叩响命运之门 · 听一段旋律 · 猜出它的名字</p>
+      <span class="banner-cta">▶ 点击开始</span>
+    </div>
+
+    <div class="mode-grid">
+      <button class="mode-card normal" data-mode="normal">
+        <div class="emoji">🎵</div>
+        <div><div class="title">普通模式</div><div class="sub">经典曲库 · 新手友好</div></div>
+      </button>
+      <button class="mode-card kpop" data-mode="kpop">
+        <div class="emoji">💃</div>
+        <div><div class="title">K-pop 专区</div><div class="sub">韩流劲曲 · 节奏拉满</div></div>
+      </button>
+      <button class="mode-card western" data-mode="western">
+        <div class="emoji">🎸</div>
+        <div><div class="title">欧美专区</div><div class="sub">经典欧美 · 燃情摇滚</div></div>
+      </button>
+      <button class="mode-card locked" disabled>
+        <div class="lock-emoji">🔒</div>
+        <div class="title">更多专区</div>
+        <div class="sub" style="margin-top:2px;">敬请期待</div>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ ZODIAC SELECT ============ -->
+  <div class="screen" id="screen-zodiac">
+    <div class="topbar">
+      <button class="back-btn" id="btn-back-home">‹</button>
+      <div class="score-pill" id="score-pill-zodiac">
+        <span class="star">⭐</span><span class="score-num" id="score-num-zodiac">0</span>
+      </div>
+    </div>
+    <div class="zodiac-header">
+      <h2 class="display-font" id="zodiac-mode-title">普通模式</h2>
+      <p>选择一个生肖，敲开它身后的门</p>
+    </div>
+    <div class="zodiac-grid" id="zodiac-grid"></div>
+  </div>
+
+  <!-- ============ DOOR SCREEN ============ -->
+  <div class="screen door-screen" id="screen-door">
+    <div class="topbar">
+      <button class="back-btn" id="btn-back-zodiac">‹</button>
+      <div class="score-pill" id="score-pill-door">
+        <span class="star">⭐</span><span class="score-num" id="score-num-door">0</span>
+      </div>
+    </div>
+
+    <div class="door-number-wrap">
+      <div class="door-label">第</div>
+      <div class="door-number display-font" id="door-number">01</div>
+      <div class="door-score-hint" id="door-score-hint">答对可得 1000 分</div>
+    </div>
+
+    <div class="doorbell-wrap">
+      <div class="progress-ring-track" id="progress-ring"></div>
+      <div class="ring-pulse" id="ring-pulse"></div>
+      <button class="doorbell-btn" id="doorbell-btn">🔔</button>
+    </div>
+    <div class="doorbell-hint" id="doorbell-hint">长按门铃，聆听门后的旋律</div>
+
+    <div class="answer-panel" id="answer-panel">
+      <div class="row-top">
+        <span class="label">这是哪首歌？</span>
+        <button class="hint-toggle" id="hint-toggle">?</button>
+      </div>
+      <div class="hint-text" id="hint-text"></div>
+      <input class="answer-input" id="answer-input" placeholder="输入歌名…" autocomplete="off">
+      <div class="answer-btns">
+        <button class="btn-idk" id="btn-idk">不知道</button>
+        <button class="btn-confirm" id="btn-confirm">确认答案</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SUMMARY ============ -->
+  <div class="screen summary-screen" id="screen-summary">
+    <div class="sub display-font">本局游戏结束</div>
+    <div class="total">
+      本局游戏积分为
+      <b id="summary-total">0</b>
+    </div>
+    <div class="stars-row" id="summary-stars">⭐⭐⭐</div>
+    <button class="btn-home" id="btn-return-home">返回主页面</button>
+  </div>
+
+  </div><!-- /.screens-wrap -->
+
+</div>
+
+<!-- portal transition overlay -->
+<div id="portal-overlay"><div class="portal-emoji">🌀</div></div>
+
+<!-- feedback flash -->
+<div id="feedback-flash"><div class="flash-text" id="flash-text"></div></div>
+
+<!-- result modal (video + song info) -->
+<div class="modal-overlay" id="modal-result">
+  <div class="modal-box">
+    <div class="modal-info-header">
+      <div class="modal-info-title" id="result-title"></div>
+      <div class="modal-info-row" id="result-info-rows"></div>
+    </div>
+    <div class="modal-divider"></div>
+    <div class="modal-video-wrap">
+      <video id="result-video" playsinline controls autoplay muted></video>
+    </div>
+    <div class="modal-btn-wrap">
+      <button class="btn-collect hidden" id="btn-collect">收集积分并继续游戏</button>
+      <button class="btn-viewscore hidden" id="btn-viewscore">查看本局游戏积分</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+
+  /* ============================================================
+     🎵 歌曲配置区 - 按专区分类
+     allowedDoors：这首歌允许出现在哪些门号背后。算法严格遵守
+     allowedDoors，且同一局游戏中每首歌最多只会被选为一次"答案"。
+     excludeWith：本场游戏中不能与这些歌曲同时出现的歌曲 id。
+     ============================================================ */
+
+  const SONG_DATABASE = {
+    normal: [
+      {id:"song_01", title:"好好",   artist:"五月天", album:"自传",     year:"2016", audio:"haohao.mp3", video:"haohao.mp4", allowedDoors:[8,9,10]},
+      { id:"song_02", title:"冻结",     artist:"林俊杰", album:"乐行者",     year:"2003", audio:"dongjie.mp3", video:"dongjie.mp4", allowedDoors:[7] },
+      { id:"song_03", title:"阴天快乐",     artist:"陈奕迅", album:"rice&shine", year:"2014", audio:"yintiankuaile.mp3", video:"yintiankuaile.mp4", allowedDoors:[7] },
+      { id:"song_04", title:"魔鬼中的天使",     artist:"田馥甄", album:"My Love",     year:"2011", audio:"moguizhongdetianshi.mp3", video:"moguizhongdetianshi.mp4", allowedDoors:[5,6,8], },
+      { id:"song_05", title:"红豆",     artist:"王菲",   album:"唱游",       year:"1998", audio:"assets/normal/song_05.mp3", video:"assets/normal/mv_05.mp4", allowedDoors:[6] },
+      { id:"song_06", title:"匆匆那年", artist:"王菲",   album:"匆匆那年",   year:"2014", audio:"assets/normal/song_06.mp3", video:"assets/normal/mv_06.mp4", allowedDoors:[5]},
+      { id:"song_07", title:"Mojito",  artist:"周杰伦", album:"最伟大的作品", year:"2020", audio:"assets/normal/song_07.mp3", video:"assets/normal/mv_07.mp4", allowedDoors:[4],  },
+      { id:"song_08", title:"告白气球", artist:"周杰伦", album:"周杰伦的床边故事", year:"2016", audio:"assets/normal/song_08.mp3", video:"assets/normal/mv_08.mp4", allowedDoors:[3], },
+      { id:"song_09", title:"演员",     artist:"薛之谦", album:"绅士",       year:"2015", audio:"assets/normal/song_09.mp3", video:"assets/normal/mv_09.mp4", allowedDoors:[2]},
+      { id:"song_10", title:"体面",     artist:"于文文", album:"体面",       year:"2017", audio:"assets/normal/song_10.mp3", video:"assets/normal/mv_10.mp4", allowedDoors:[12] },
+      { id:"song_11", title:"消愁",     artist:"毛不易", album:"平凡的一天", year:"2017", audio:"assets/normal/song_11.mp3", video:"assets/normal/mv_11.mp4", allowedDoors:[11] },
+      { id:"song_12", title:"给我一首歌的时间", artist:"周杰伦", album:"我很忙", year:"2007", audio:"assets/normal/song_12.mp3", video:"assets/normal/mv_12.mp4", allowedDoors:[1] },
+      { id:"song_13", title:"雨爱",     artist:"杨丞琳", album:"雨爱", year:"2010", audio:"assets/normal/song_11.mp3", video:"assets/normal/mv_11.mp4", allowedDoors:[9] },
+      { id:"song_14", title:"突然好想你",     artist:"五月天", album:"后青春期的诗", year:"2008", audio:"assets/normal/song_11.mp3", video:"assets/normal/mv_11.mp4", allowedDoors:[10] },
+    ],
+
+    kpop: [
+      { id:"kpop_01", title:"Dynamite",             artist:"BTS",       album:"BE",              year:"2020", audio:"assets/kpop/song_01.mp3", video:"assets/kpop/mv_01.mp4", allowedDoors:[1],  excludeWith:["kpop_07"] },
+      { id:"kpop_02", title:"How You Like That",    artist:"BLACKPINK", album:"THE ALBUM",       year:"2020", audio:"assets/kpop/song_02.mp3", video:"assets/kpop/mv_02.mp4", allowedDoors:[2] },
+      { id:"kpop_03", title:"Fantasy",               artist:"EXO",       album:"THE WAR",         year:"2017", audio:"assets/kpop/song_03.mp3", video:"assets/kpop/mv_03.mp4", allowedDoors:[3] },
+      { id:"kpop_04", title:"Permission to Dance",  artist:"BTS",       album:"Butter",          year:"2021", audio:"assets/kpop/song_04.mp3", video:"assets/kpop/mv_04.mp4", allowedDoors:[4], excludeWith:["kpop_08"] },
+      { id:"kpop_05", title:"Kill This Love",       artist:"BLACKPINK", album:"KILL THIS LOVE",  year:"2019", audio:"assets/kpop/song_05.mp3", video:"assets/kpop/mv_05.mp4", allowedDoors: [5]},
+      { id:"kpop_06", title:"Love Shot",             artist:"EXO",       album:"LOVE SHOT",       year:"2018", audio:"assets/kpop/song_06.mp3", video:"assets/kpop/mv_06.mp4", allowedDoors:[6] },
+      { id:"kpop_07", title:"Boy With Luv",          artist:"BTS",       album:"MAP OF THE SOUL", year:"2019", audio:"assets/kpop/song_07.mp3", video:"assets/kpop/mv_07.mp4", allowedDoors:[7],  excludeWith:["kpop_01"] },
+      { id:"kpop_08", title:"Pink Venom",            artist:"BLACKPINK", album:"BORN PINK",       year:"2022", audio:"assets/kpop/song_08.mp3", video:"assets/kpop/mv_08.mp4", allowedDoors:[8], excludeWith:["kpop_04"] },
+      { id:"kpop_09", title:"Antifragile",            artist:"LE SSERAFIM", album:"ANTIFRAGILE",  year:"2022", audio:"assets/kpop/song_09.mp3", video:"assets/kpop/mv_09.mp4", allowedDoors:[9] },
+      { id:"kpop_10", title:"ETA",                    artist:"NewJeans", album:"How Sweet",       year:"2024", audio:"assets/kpop/song_10.mp3", video:"assets/kpop/mv_10.mp4", allowedDoors:[10] },
+      { id:"kpop_11", title:"Super Shy",              artist:"NewJeans", album:"NewJeans 2nd EP", year:"2023", audio:"assets/kpop/song_11.mp3", video:"assets/kpop/mv_11.mp4", allowedDoors:[11] },
+      { id:"kpop_12", title:"Cupid",                  artist:"FIFTY FIFTY", album:"The Beginning", year:"2023", audio:"assets/kpop/song_12.mp3", video:"assets/kpop/mv_12.mp4", allowedDoors:[12] }
+    ],
+
+    western: [
+      { id:"west_01", title:"Shake It Off",       artist:"Taylor Swift", album:"1989",                 year:"2014", audio:"assets/western/song_01.mp3", video:"assets/western/mv_01.mp4", allowedDoors:[1],  excludeWith:["west_07"] },
+      { id:"west_02", title:"Bad Guy",             artist:"Billie Eilish", album:"WHEN WE ALL FALL ASLEEP", year:"2019", audio:"assets/western/song_02.mp3", video:"assets/western/mv_02.mp4", allowedDoors:[2] },
+      { id:"west_03", title:"Blinding Lights",     artist:"The Weeknd",   album:"After Hours",          year:"2020", audio:"assets/western/song_03.mp3", video:"assets/western/mv_03.mp4", allowedDoors:[3] },
+      { id:"west_04", title:"Love Story",          artist:"Taylor Swift", album:"Fearless",             year:"2008", audio:"assets/western/song_04.mp3", video:"assets/western/mv_04.mp4", allowedDoors:[4], excludeWith:["west_08"] },
+      { id:"west_05", title:"Levitating",          artist:"Dua Lipa",     album:"Future Nostalgia",     year:"2020", audio:"assets/western/song_05.mp3", video:"assets/western/mv_05.mp4", allowedDoors:[5] },
+      { id:"west_06", title:"Watermelon Sugar",    artist:"Harry Styles", album:"Fine Line",            year:"2019", audio:"assets/western/song_06.mp3", video:"assets/western/mv_06.mp4", allowedDoors:[6] },
+      { id:"west_07", title:"Blank Space",         artist:"Taylor Swift", album:"1989",                 year:"2014", audio:"assets/western/song_07.mp3", video:"assets/western/mv_07.mp4", allowedDoors:[7], excludeWith:["west_01"] },
+      { id:"west_08", title:"Cruel Summer",        artist:"Taylor Swift", album:"Lover",                year:"2019", audio:"assets/western/song_08.mp3", video:"assets/western/mv_08.mp4", allowedDoors:[8], excludeWith:["west_04"] },
+      { id:"west_09", title:"Flowers",             artist:"Miley Cyrus",  album:"Endless Summer Vacation", year:"2023", audio:"assets/western/song_09.mp3", video:"assets/western/mv_09.mp4", allowedDoors:[9] },
+      { id:"west_10", title:"As It Was",           artist:"Harry Styles", album:"Harry's House",        year:"2022", audio:"assets/western/song_10.mp3", video:"assets/western/mv_10.mp4", allowedDoors:[10] },
+      { id:"west_11", title:"Anti-Hero",           artist:"Taylor Swift", album:"Midnights",            year:"2022", audio:"assets/western/song_11.mp3", video:"assets/western/mv_11.mp4", allowedDoors:[11] },
+      { id:"west_12", title:"Espresso",            artist:"Sabrina Carpenter", album:"Short n' Sweet",  year:"2024", audio:"assets/western/song_12.mp3", video:"assets/western/mv_12.mp4", allowedDoors:[12] }
+    ]
+  };
+
+  const MODE_TITLES = { normal:'普通模式', kpop:'K-pop 专区', western:'欧美专区', daily:'每日挑战' };
+
+  const DAILY_CHALLENGE = {
+    enabled: true,
+    doorMapping: {
+      1:  "song_06",
+      2:  "song_05",
+      3:  "kpop_01",
+      4:  "kpop_04",
+      5:  "song_04",
+      6:  "song_03",
+      7:  "song_02",
+      8:  "song_01",
+      9:  "kpop_05",
+      10: "west_02",
+      11: "west_11",
+      12: "kpop_12"
+    }
+  };
+
+  const RULE_HINT_TEXT =
+`📌 猜歌规则说明：
+• 输入歌名时请使用中文或英文原名
+• 大小写需要完全一致（如 Dynamite ≠ dynamite）
+• 不需要输入歌手名，只输入歌名即可
+• 如果实在想不起来，可以点击"不知道"按钮
+
+💡 提示：可以回忆一下歌曲的副歌部分！`;
+
+  const ZODIAC = [
+    {key:'rat',emoji:'🐭',name:'鼠'}, {key:'ox',emoji:'🐮',name:'牛'},
+    {key:'tiger',emoji:'🐯',name:'虎'}, {key:'rabbit',emoji:'🐰',name:'兔'},
+    {key:'dragon',emoji:'🐲',name:'龙'}, {key:'snake',emoji:'🐍',name:'蛇'},
+    {key:'horse',emoji:'🐴',name:'马'}, {key:'goat',emoji:'🐏',name:'羊'},
+    {key:'monkey',emoji:'🐵',name:'猴'}, {key:'rooster',emoji:'🐔',name:'鸡'},
+    {key:'dog',emoji:'🐶',name:'狗'}, {key:'pig',emoji:'🐷',name:'猪'}
+  ];
+
+  function getScoreForDoor(n){
+    if(n<=3) return 1000;
+    if(n<=6) return 3000;
+    if(n<=9) return 5000;
+    if(n===10) return 10000;
+    if(n===11) return 20000;
+    return 30000;
+  }
+
+  function shuffle(arr){
+    const a = arr.slice();
+    for(let i=a.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [a[i],a[j]] = [a[j],a[i]];
+    }
+    return a;
+  }
+  function normalizeAnswer(s){
+    return (s||'').trim();
+  }
+  function getAllSongsFlat(){
+    return [
+      ...SONG_DATABASE.normal,
+      ...SONG_DATABASE.kpop,
+      ...SONG_DATABASE.western
+    ];
+  }
+  function findSongById(id){
+    return getAllSongsFlat().find(s => s.id === id);
+  }
+
+  const state = {
+    mode:null,
+    score:0,
+    doors:{},
+    animalDoorMap:{},
+    solvedAnimals:new Set(),
+    currentAnimalKey:null,
+    currentDoorNum:null,
+    audio:null,
+    preloadedAudio:null,
+    preloadedDoorNum:null,
+    fadeTimer:null,
+    holdTimeoutId:null,
+    progressRAF:null,
+    holdStart:0,
+    isHolding:false,
+    answering:false
+  };
+
+  const HOLD_MAX_MS = 20000;
+
+  /* =====================================================
+     组局：为本场游戏分配 12 道门的曲目
+     - 严格遵守 allowedDoors：一首歌绝不会分配到不在它
+       allowedDoors 列表里的门号。
+     - 同一局游戏中，一首歌只会被选为一次"答案"（door.answer），
+       已经被选为答案的歌会从后续门的候选池中排除。
+     ===================================================== */
+  function buildGameDoors(pool){
+    const used = new Set(); // 已经被选为"答案"的歌曲 id（一局内不重复）
+    const doors = {};
+
+    function hasConflict(song){
+      return (song.excludeWith||[]).some(exId => used.has(exId));
+    }
+
+    for(let n=1;n<=12;n++){
+      const count = Math.random() < 0.5 ? 3 : 4;
+
+      let candidates = shuffle(pool.filter(s => (s.allowedDoors||[]).includes(n) && !used.has(s.id) && !hasConflict(s)));
+
+      if(candidates.length < count){
+        const relaxed = shuffle(pool.filter(s => (s.allowedDoors||[]).includes(n) && !used.has(s.id)));
+        candidates = relaxed;
+      }
+
+      if(candidates.length === 0){
+        console.warn('[猜歌游戏] 门 ' + n + ' 没有可用的（未使用过的）歌曲，请检查 SONG_DATABASE 的 allowedDoors 覆盖是否足够。');
+      }
+
+      let picked = candidates.slice(0, Math.min(count, candidates.length));
+      const answer = picked.length ? picked[Math.floor(Math.random()*picked.length)] : null;
+      if(answer) used.add(answer.id); // 只有真正被抽为"答案"的歌才标记为已用，避免同一首歌一局内出现两次
+      doors[n] = { num:n, songs:picked, answer, solved:false };
+    }
+    return doors;
+  }
+
+  function buildDailyChallengeDoors(){
+    if(!DAILY_CHALLENGE.enabled){
+      return buildGameDoors(getAllSongsFlat());
+    }
+    const doors = {};
+    for(let n=1;n<=12;n++){
+      const songId = DAILY_CHALLENGE.doorMapping[n];
+      const song = findSongById(songId);
+      if(!song){
+        alert('歌曲配置错误，请检查：门 ' + n + ' 对应的歌曲 id "' + songId + '" 在 SONG_DATABASE 里找不到');
+        return null;
+      }
+      doors[n] = { num:n, songs:[song], answer:song, solved:false };
+    }
+    return doors;
+  }
+
+  function buildAnimalDoorMap(){
+    const numbers = shuffle([1,2,3,4,5,6,7,8,9,10,11,12]);
+    const map = {};
+    ZODIAC.forEach((z,i) => { map[z.key] = numbers[i]; });
+    return map;
+  }
+
+  const $ = id => document.getElementById(id);
+  const screens = {
+    home: $('screen-home'),
+    zodiac: $('screen-zodiac'),
+    door: $('screen-door'),
+    summary: $('screen-summary')
+  };
+  const portalOverlay = $('portal-overlay');
+
+  function switchScreen(name, {portal=false} = {}){
+    if(portal){
+      portalOverlay.classList.remove('show');
+      void portalOverlay.offsetWidth;
+      portalOverlay.classList.add('show');
+    }
+    const doSwitch = () => {
+      Object.values(screens).forEach(s => s.classList.remove('active'));
+      screens[name].classList.add('active');
+      window.scrollTo(0,0);
+    };
+    if(portal){ setTimeout(doSwitch, 260); }
+    else { doSwitch(); }
+  }
+
+  function syncScoreDisplays(){
+    ['home','zodiac','door'].forEach(k=>{
+      const el = $('score-num-'+k);
+      if(el) el.textContent = state.score;
+    });
+  }
+  function bumpScorePill(screenKey){
+    const pill = $('score-pill-'+screenKey);
+    if(!pill) return;
+    pill.classList.remove('bump');
+    void pill.offsetWidth;
+    pill.classList.add('bump');
+  }
+
+  document.querySelectorAll('.mode-card[data-mode]').forEach(card=>{
+    card.addEventListener('click', () => startMode(card.dataset.mode));
+  });
+
+  function startMode(modeKey){
+    const doors = buildGameDoors(SONG_DATABASE[modeKey]);
+    beginGame(modeKey, doors);
+  }
+
+  const dailyBanner = $('daily-challenge-banner');
+  function startDailyChallenge(){
+    const doors = buildDailyChallengeDoors();
+    if(!doors) return;
+    beginGame('daily', doors);
+  }
+  dailyBanner.addEventListener('click', startDailyChallenge);
+  dailyBanner.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); startDailyChallenge(); }
+  });
+
+  function beginGame(modeKey, doors){
+    state.mode = modeKey;
+    state.score = 0;
+    state.doors = doors;
+    state.animalDoorMap = buildAnimalDoorMap();
+    state.solvedAnimals = new Set();
+    syncScoreDisplays();
+
+    $('zodiac-mode-title').textContent = MODE_TITLES[modeKey] || modeKey;
+    renderZodiacGrid();
+    switchScreen('zodiac', {portal:true});
+  }
+
+  function renderZodiacGrid(){
+    const grid = $('zodiac-grid');
+    grid.innerHTML = '';
+    ZODIAC.forEach(z=>{
+      const solved = state.solvedAnimals.has(z.key);
+      const cell = document.createElement('button');
+      cell.className = 'zodiac-cell' + (solved ? ' solved' : '');
+      cell.innerHTML = `<div class="flip-inner"><div class="emoji">${z.emoji}</div><div class="name">${z.name}</div></div>`;
+      if(!solved){
+        cell.addEventListener('click', () => openDoorFromAnimal(z.key));
+      } else {
+        cell.disabled = true;
+      }
+      grid.appendChild(cell);
+    });
+  }
+
+  $('btn-back-home').addEventListener('click', () => {
+    switchScreen('home');
+  });
+
+  function openDoorFromAnimal(animalKey){
+    state.currentAnimalKey = animalKey;
+    state.currentDoorNum = state.animalDoorMap[animalKey];
+    const doorNum = state.currentDoorNum;
+
+    $('door-number').textContent = String(doorNum).padStart(2,'0');
+    $('door-score-hint').textContent = `答对可得 ${getScoreForDoor(doorNum).toLocaleString()} 分`;
+    resetDoorUI();
+    switchScreen('door', {portal:true});
+  }
+
+  $('btn-back-zodiac').addEventListener('click', () => {
+    cleanupAudio();
+    switchScreen('zodiac');
+  });
+
+  function resetDoorUI(){
+    $('answer-panel').classList.remove('show');
+    $('answer-input').value = '';
+    $('hint-text').classList.remove('show');
+    $('hint-text').textContent = RULE_HINT_TEXT;
+    $('doorbell-hint').textContent = '长按门铃，聆听门后的旋律';
+    $('doorbell-btn').classList.remove('holding');
+    $('ring-pulse').classList.remove('animate');
+    $('progress-ring').classList.remove('show');
+    $('progress-ring').style.setProperty('--p', 0);
+    state.answering = false;
+    state.holdStart = 0;
+
+    // 提前预加载这扇门后面的歌曲：进入门铃界面时就开始缓冲，
+    // 减少长按门铃后到真正出声之间的延迟（移动端首次加载尤其明显）。
+    const door = state.doors[state.currentDoorNum];
+    if(door && door.answer){
+      try{
+        const preAudio = new Audio(door.answer.audio);
+        preAudio.preload = 'auto';
+        preAudio.load();
+        state.preloadedAudio = preAudio;
+        state.preloadedDoorNum = state.currentDoorNum;
+      }catch(err){
+        state.preloadedAudio = null;
+        state.preloadedDoorNum = null;
+      }
+    } else {
+      state.preloadedAudio = null;
+      state.preloadedDoorNum = null;
+    }
+  }
+
+  const doorbellBtn = $('doorbell-btn');
+  const ringPulse = $('ring-pulse');
+  const progressRing = $('progress-ring');
+  const doorbellHint = $('doorbell-hint');
+
+  function startHold(e){
+    if(state.isHolding || state.answering) return;
+    e.preventDefault();
+    state.isHolding = true;
+    state.holdStart = 0; // 真正的计时会在音频实际开始播放（'playing'事件）后才启动
+
+    doorbellBtn.classList.add('holding');
+    doorbellHint.textContent = '正在连接旋律…';
+
+    const door = state.doors[state.currentDoorNum];
+    const song = door.answer;
+
+    function tick(){
+      if(!state.isHolding || !state.holdStart) return;
+      const elapsed = Date.now() - state.holdStart;
+      const pct = Math.min(100, (elapsed / HOLD_MAX_MS) * 100);
+      progressRing.style.setProperty('--p', pct.toFixed(1));
+      if(elapsed >= HOLD_MAX_MS){
+        endHold();
+        return;
+      }
+      state.progressRAF = requestAnimationFrame(tick);
+    }
+
+    function beginCountingFromNow(){
+      if(!state.isHolding) return; // 用户可能已经在音频真正响起之前松手了
+      if(state.holdStart) return; // 避免重复触发
+      state.holdStart = Date.now();
+      ringPulse.classList.add('animate');
+      progressRing.classList.add('show');
+      doorbellHint.textContent = '正在聆听…松开结束';
+      state.progressRAF = requestAnimationFrame(tick);
+    }
+
+    let audio = null;
+    if(song){
+      try{
+        // 优先复用 resetDoorUI 里已经预加载好的音频对象，减少延迟
+        if(state.preloadedAudio && state.preloadedDoorNum === state.currentDoorNum){
+          audio = state.preloadedAudio;
+        } else {
+          audio = new Audio(song.audio);
+          audio.preload = 'auto';
+        }
+        state.preloadedAudio = null;
+        state.preloadedDoorNum = null;
+
+        audio.volume = 1;
+        audio.loop = false;
+        audio.addEventListener('error', () => {
+          console.warn('[猜歌游戏] 音频加载失败，请检查路径/文件是否存在：', song.audio);
+        });
+        audio.addEventListener('playing', () => {
+          if(!state.isHolding){
+            // 用户已经松手了，音频才姗姗来迟地开始播放——直接停掉，不再计时
+            try{ audio.pause(); }catch(_){}
+            return;
+          }
+          beginCountingFromNow();
+        }, { once:true });
+        audio.play().catch((err) => {
+          console.warn('[猜歌游戏] 音频播放失败或被浏览器拦截：', song.audio, err);
+        });
+      }catch(err){
+        console.warn('[猜歌游戏] 创建音频对象时出错：', song.audio, err);
+        audio = null;
+      }
+    } else {
+      console.warn('[猜歌游戏] 门 ' + state.currentDoorNum + ' 没有分配到歌曲（曲库 allowedDoors 配置不完整）。');
+    }
+    state.audio = audio;
+
+    // 兜底：如果音频对象创建失败（没有 'playing' 事件可等），直接按下即开始计时，
+    // 避免用户长按却永远等不到进度环出现。
+    if(!audio){
+      beginCountingFromNow();
+    }
+  }
+
+  function endHold(){
+    if(!state.isHolding) return;
+    state.isHolding = false;
+    doorbellBtn.classList.remove('holding');
+    ringPulse.classList.remove('animate');
+    doorbellHint.textContent = '旋律渐渐淡去…';
+    if(state.progressRAF) cancelAnimationFrame(state.progressRAF);
+    fadeOutAudio(() => {
+      progressRing.classList.remove('show');
+      showAnswerPanel();
+    });
+  }
+
+  function fadeOutAudio(onDone){
+    const audio = state.audio;
+    if(!audio){ onDone && onDone(); return; }
+    clearInterval(state.fadeTimer);
+    const step = 0.06;
+    state.fadeTimer = setInterval(() => {
+      try{
+        audio.volume = Math.max(0, audio.volume - step);
+      }catch(err){
+        clearInterval(state.fadeTimer);
+        onDone && onDone();
+        return;
+      }
+      if(audio.volume <= 0.001){
+        clearInterval(state.fadeTimer);
+        try{ audio.pause(); }catch(_){}
+        onDone && onDone();
+      }
+    }, 45);
+  }
+
+  function cleanupAudio(){
+    state.isHolding = false;
+    if(state.progressRAF) cancelAnimationFrame(state.progressRAF);
+    clearInterval(state.fadeTimer);
+    if(state.audio){ try{ state.audio.pause(); }catch(_){} state.audio = null; }
+    if(state.preloadedAudio){ try{ state.preloadedAudio.pause(); }catch(_){} state.preloadedAudio = null; }
+    doorbellBtn.classList.remove('holding');
+    ringPulse.classList.remove('animate');
+    progressRing.classList.remove('show');
+  }
+
+  doorbellBtn.addEventListener('mousedown', startHold);
+  doorbellBtn.addEventListener('touchstart', startHold, {passive:false});
+  ['mouseup','mouseleave','touchend','touchcancel'].forEach(evt=>{
+    doorbellBtn.addEventListener(evt, endHold);
+  });
+
+  function showAnswerPanel(){
+    state.answering = true;
+    $('answer-panel').classList.add('show');
+    setTimeout(()=> $('answer-input').focus(), 200);
+  }
+
+  $('hint-toggle').addEventListener('click', () => {
+    $('hint-text').classList.toggle('show');
+  });
+
+  $('btn-idk').addEventListener('click', () => submitAnswer(null));
+  $('btn-confirm').addEventListener('click', () => submitAnswer($('answer-input').value));
+  $('answer-input').addEventListener('keydown', (e) => {
+    if(e.key === 'Enter') submitAnswer($('answer-input').value);
+  });
+
+  function submitAnswer(rawValue){
+    if(!state.answering) return;
+    state.answering = false;
+    $('answer-panel').classList.remove('show');
+
+    const door = state.doors[state.currentDoorNum];
+    if(!door.answer){
+      setTimeout(() => showFeedback(false, door), 150);
+      return;
+    }
+    const correctTitle = door.answer.title;
+    const isCorrect = rawValue !== null && normalizeAnswer(rawValue) === normalizeAnswer(correctTitle);
+
+    setTimeout(() => showFeedback(isCorrect, door), 150);
+  }
+
+  function showFeedback(isCorrect, door){
+    const flash = $('feedback-flash');
+    const text = $('flash-text');
+    flash.className = '';
+    flash.classList.add('show', isCorrect ? 'correct' : 'wrong');
+    text.textContent = isCorrect ? '恭喜你回答正确！' : '很遗憾，挑战失败';
+
+    setTimeout(() => {
+      flash.classList.remove('show');
+      openResultModal(isCorrect, door);
+    }, 1250);
+  }
+
+  const resultModal = $('modal-result');
+  const resultVideo = $('result-video');
+  const resultTitle = $('result-title');
+  const resultInfoRows = $('result-info-rows');
+  const btnCollect = $('btn-collect');
+  const btnViewScore = $('btn-viewscore');
+
+  function openResultModal(isCorrect, door){
+    const song = door.answer;
+
+    resultTitle.className = 'modal-info-title ' + (isCorrect ? 'is-correct' : 'is-wrong');
+    resultTitle.textContent = isCorrect ? '🎉 恭喜你回答正确！' : '😔 很遗憾，挑战失败';
+
+    if(song){
+      resultInfoRows.innerHTML = `
+        🎵 歌名：${song.title}<br>
+        🎤 歌手：${song.artist}<br>
+        💿 专辑：${song.album}<br>
+        📅 发行年份：${song.year}
+      `;
+      resultVideo.src = song.video;
+    } else {
+      resultInfoRows.innerHTML = `⚠️ 这扇门未配置歌曲，请检查曲库设置。`;
+      resultVideo.removeAttribute('src');
+    }
+
+    btnCollect.classList.toggle('hidden', !isCorrect);
+    btnViewScore.classList.toggle('hidden', isCorrect);
+    resultModal.dataset.correct = isCorrect ? '1':'0';
+    resultModal.dataset.door = door.num;
+    resultModal.classList.add('show');
+    resultVideo.currentTime = 0;
+    resultVideo.play().catch(()=>{});
+  }
+
+  function closeResultModal(){
+    resultModal.classList.remove('show');
+    // 只调用 pause() 在移动端不够可靠：如果上面 play() 返回的 Promise
+    // 还没 resolve 就调用 pause()，等 Promise 稍后 resolve 时浏览器仍可能
+    // 让视频继续播放（经典的 play()/pause() 竞态问题）。
+    // 用 removeAttribute('src') + load() 彻底中止加载/播放请求，才能保证
+    // 关闭后视频一定不会再冒出来。
+    try{
+      resultVideo.pause();
+      resultVideo.removeAttribute('src');
+      resultVideo.load();
+    }catch(err){
+      console.warn('[猜歌游戏] 关闭视频时出错：', err);
+    }
+  }
+
+  btnCollect.addEventListener('click', () => {
+    const doorNum = Number(resultModal.dataset.door);
+    closeResultModal();
+    collectStarsThenContinue(doorNum);
+  });
+
+  btnViewScore.addEventListener('click', () => {
+    closeResultModal();
+    goToSummary();
+  });
+
+  function collectStarsThenContinue(doorNum){
+    const gained = getScoreForDoor(doorNum);
+    const target = $('score-pill-door');
+    const targetRect = target.getBoundingClientRect();
+    const originX = window.innerWidth/2;
+    const originY = window.innerHeight/2;
+
+    const starCount = 6;
+    let arrived = 0;
+    for(let i=0;i<starCount;i++){
+      const star = document.createElement('div');
+      star.className = 'fly-star';
+      star.textContent = '⭐';
+      star.style.left = (originX + (Math.random()*60-30)) + 'px';
+      star.style.top = (originY + (Math.random()*40-20)) + 'px';
+      document.body.appendChild(star);
+
+      const dx = (targetRect.left + targetRect.width/2) - originX;
+      const dy = (targetRect.top + targetRect.height/2) - originY;
+      const delay = i * 90;
+
+      setTimeout(() => {
+        star.style.transition = 'transform .6s cubic-bezier(.2,.8,.3,1), opacity .6s ease';
+        requestAnimationFrame(()=>{
+          star.style.transform = `translate(${dx}px, ${dy}px) scale(0.3)`;
+          star.style.opacity = '0.2';
+        });
+        setTimeout(() => {
+          star.remove();
+          arrived++;
+          bumpScorePill('door');
+          if(arrived === starCount){
+            finishScoreCount(doorNum, gained);
+          }
+        }, 620);
+      }, delay);
+    }
+  }
+
+  function finishScoreCount(doorNum, gained){
+    const start = state.score;
+    const end = start + gained;
+    const duration = 500;
+    const t0 = performance.now();
+    function step(t){
+      const p = Math.min(1, (t - t0)/duration);
+      state.score = Math.round(start + (end-start)*p);
+      syncScoreDisplays();
+      if(p < 1) requestAnimationFrame(step);
+      else {
+        state.score = end;
+        syncScoreDisplays();
+        markDoorSolvedAndContinue(doorNum);
+      }
+    }
+    requestAnimationFrame(step);
+  }
+
+  function markDoorSolvedAndContinue(doorNum){
+    state.doors[doorNum].solved = true;
+    state.solvedAnimals.add(state.currentAnimalKey);
+
+    if(state.solvedAnimals.size >= 12){
+      goToSummary();
+      return;
+    }
+    renderZodiacGrid();
+    switchScreen('zodiac', {portal:true});
+  }
+
+  function goToSummary(){
+    $('summary-total').textContent = state.score.toLocaleString();
+    const starCount = state.score >= 60000 ? 3 : state.score >= 20000 ? 2 : 1;
+    $('summary-stars').textContent = '⭐'.repeat(starCount);
+    switchScreen('summary', {portal:true});
+  }
+
+  $('btn-return-home').addEventListener('click', () => {
+    cleanupAudio();
+    state.mode = null;
+    state.score = 0;
+    state.doors = {};
+    state.animalDoorMap = {};
+    state.solvedAnimals = new Set();
+    state.currentAnimalKey = null;
+    state.currentDoorNum = null;
+    syncScoreDisplays();
+    switchScreen('home', {portal:true});
+  });
+
+})();
+</script>
+</body>
+</html>
